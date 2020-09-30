@@ -1,0 +1,257 @@
+---
+title: "ACP application on ONU dataset"
+output: html_notebook
+---
+
+# 0. Ouverture de fichiers et description élémentaire
+
+
+## 0.1 Instructions
+  
+  Les instructions à suivre sont accessible grâce au lien suivant: [link](https://moodle.univ-angers.fr/pluginfile.php/1391419/mod_resource/content/1/RD2_TP.html).
+  
+## 0.2 Description élémentaire
+
+```{r}
+library(stringr)
+library(FactoMineR)
+library(factoextra)
+library(ade4)
+library(ggplot2)
+library(corrplot)
+
+onu <- read.csv("C:/Users/Philippine/Documents/Cours/Maths/M1/S2/Data_Mining/ONU.csv",header=TRUE, sep=",", row.names=1)
+
+str(onu)
+```
+
+  A première vue, les 4 dernières colonnes du tableau sont des variables qualitatives. Or elles sont ici considérées comme des variables quantitatives. La ligne de commande donnée dans l'énoncé permet donc de modifier le type de ces 4 variables.
+  
+```{r}
+# change all categorical data to factor type
+for (i in 11:14) { onu[,i] <- as.factor(onu[,i])} 
+#verification
+str(onu)
+```
+  Les quatres variables SEX, ACT, CIV et PAYS sont maintenant bien considérées comme des variables qualitatives.
+  
+**Commençons par visualiser les caractéristiques de ce tableau de données.**
+(On sépare le tableau en 2 pour avoir une mise en page plus claire)
+  
+```{r}
+summary(onu[,1:7])
+```
+  
+```{r}
+summary(onu[,8:14])
+```
+  
+La première chose que l'on peut remarquer est que la population est composée de 28 individus, les hommes représentant approximativement 43% de la population et les femmes 57%.La majeure partie des individus n'a pas précisé son activité professionnelle, les conclusions qui seront faites quant à cette variable seront donc à nuancer. Il en va de même pour pour la variable CIV.
+En revanche, il y a autant d'individus de chaque catégorie de pays donc aucune catégorie ne sera sur-représentée ou sous-représentée dans l'analyse.
+
+**Regardons les relations possibles entre les variables en enlevant les variables qualitatives.**
+```{r}
+plot(onu[,1:10])
+```
+  Au vu de ces différents nuages de points, il semble y avoir une forte corrélation positive entre les variables PROF(profession) et TRAN(transport) ainsi qu'entre les variables MENA(ménage) et ENFA(enfants).
+Il semble également y avoir une corrélation négative entre les variables TRAN et MENA, ainsi qu'entre TRAN et ENFA (de même pour PROF et MENA et PROF et ENFA).
+Il n'y a pas de corrélation apparente entre les variables TELE(télévision) et TRAN.
+Nous pouvons vérifier cela à l'aide d'un diagramme de corrélation.
+
+```{r}
+#vizualisation of correlation between quantitative variables
+corrplot(cor(onu[1:10]))
+```
+  Grâce à ce graphique, nous pouvons ajouter à la remarque précédente que de manière générale, la variable TELE ne semble pas avoir de corrélation très significative avec les autres variables.
+On retrouve bien que les variables PROF, TRAN, MENA et ENFA sont très corrélées (positivement ou négativement).
+On remarque également que les variables COUR(courses), REPA(repas) et SOMM(sommeil) sont positivement corrélées (dans une moindre mesure) avec les variables PROF et TRAN.
+Toutes les variables citées ici pourraient jouer un rôle important dans la définition des composantes principales lors de l'application de l'ACP à ce tableau de données.
+
+
+# 1. Normalisation et ACP
+
+## 1.1 Normalisation
+
+**La manipulation suivante n'est pas nécessaire ici mais il est important de se rappeler qu'à chaque fois que l'on souhaite utiliser une méthode d'analyse factorielle lors d'une étude statistique il faut toujours centrer et réduire le jeu de données.**
+(Ce n'est pas nécessaire dans notre cas car par défaut, une ACP sur R est toujours une ACP normée si aucune option n'est précisée)
+
+```{r}
+#scaling and centering of quantitive data of the data frame (columns number 1 to 10)
+for (i in 1:10) onu[,i] <- scale(onu[,i])
+#verification
+cov(onu[,1:10])
+```
+  On obtient donc bien ici que la matrice des variances-covariances est en fait la matrice des corrélations.
+  
+## 1.2 Application de l'ACP
+
+Les variables qualitatives seront considérées comme supplémentaires.
+
+```{r}
+onu_pca <- PCA(onu, quali.sup=c(11,12,13,14), scale.unit=FALSE, graph=FALSE)
+onu_pca$eig #on regarde la part de variance expliquée (inertie) par chaque composante principale
+```
+  **Remarque**: La totalité de l'information peut être retransmise par 9 variables synthétiques. Cela peut signifier que certaines variables initiales sont très corrélées.
+
+
+## 2 Contribution des variables pour chaque axe
+
+Visualisons plus clairement les pourcentages d'inertie projetée sur les différentes dimensions.
+```{r}
+#vizualisation of the explained variance plot
+fviz_eig(onu_pca, addlabels = TRUE)
+```
+  On voit donc clairement que quasiment 100% de la variance peut être expliquée par 8 composantes principales.
+Pour des raisons pratiques, nous limiterons le nombre d'axes retenus à 2 dans notre étude bien qu'il serait préférable d'en choisir 4, en se basant sur le critère de Kaiser (on ne retient que les dimensions qui ont des valeurs propres supérieurs à 1) ainsi que par appréciation personnelle (4 dimensions permettent d'expliquer plus de 90% de la variance).
+
+Dans le plan F1-F2, la qualité de l'ACP est de 67%. On voit cela sur le graphique en faisant la somme des pourcentages de variance expliquée des dimensions 1 et 2. On peut aussi retrouver ce résultat grâce à la commande suivante:
+```{r}
+sum(onu_pca$eig[1:2,1])/sum(onu_pca$eig[,1])
+```
+
+
+# 3. Representation des variables dans le plan F1-F2
+
+```{r}
+#plot of variables according to F1 and F2
+fviz_pca_var(onu_pca)
+```
+
+  On voit ici clairement la très forte corrélation positive des variables TRAN et PROF ainsi que ENFA et MENA. Les variables SOMM et REPA ont aussi l'air fortement corrélées positivement.
+Le groupe de variables ENFA/MENA est très négativement corrélé au groupe TRAN/PROF.
+La variable TOIL semble elle orthogonale aux variables TRAN/PROF/ENFA/MENA (donc que très peu corrélée).
+Les variables TELE et LOIS sont assez mal représentées sur ce plan. On ne peut donc pas dire grand chose sur elles.
+
+# 4. Représentation des variables et des individus dans le plan F1-F2
+
+## 4.1 Représentation des individus
+**On représente d'abord les individus seuls pour avoir un graphique plus clair, qui aidera à la compréhension de futurs graphiques**
+
+```{r}
+#plot of individuals according to F1 and F2
+fviz_pca_ind(onu_pca, repel=TRUE)
+```
+
+  On remarque que les individus sont assez dispersés dans le plan mais on peut tout de même remarquer que les hommes sont principalement localisés à gauche de l'axe 1 (coordonnées négatives selon F1) et les femmes à droite.
+Les individus HMY, HAY, HME et HAE semble avoir des données très proches (du moins sur ce plan). Il en est de même pour les individus HAW, HMW, HCW et FCY, FCE.
+Vérifions cela à l'aide du cos2:
+
+```{r}
+#plot of individuals in the new plan whilst only best represented individuals are kept
+fviz_pca_ind(onu_pca, repel=TRUE,  select.ind = list(cos2 = 0.70))
+```
+
+  On retrouve les mêmes groupes que cités ci-dessus (sauf pour le groupe de femmes). Cela nous indique que les individus cités dans chaque groupe sont effectivement proche entre eux et que les individus sur ce graphique sont les mieux représentés dans ce plan. (ils expliquent le mieux les axes 1 et 2).
+
+## 4.2 Représentation des variables et des individus dans le plan (axes 1 et 2)
+On ne représente que les individus expliquant le mieux les axes 1 et 2 dans un soucis de visibilité.
+```{r}
+#plot that reunites the two plot
+fviz_pca_biplot(onu_pca, repel = TRUE,
+                col.var = "#2E9FDF", # Variables color
+                col.ind = "#696969" , # Individuals color
+                select.ind = list(cos2 = 0.70)
+                )
+```
+
+## 4.3 Individu le mieux représenté
+
+L'individu le mieux représenté dans le plan F1-F2 est celui ayant le cos2 le plus élevé:
+```{r}
+#plot of cos2 for each individual
+fviz_cos2(onu_pca, choice="ind", axes=1:2)
+```
+L'individu le mieux représenté dans le plan F1-F2 est donc l'individu FNW.
+
+
+# 5. Contribution des individus et des variables à chacun des axes
+
+## 5.1 Contribution des variables
+
+```{r}
+#contribution of each variable to axis 1
+fviz_contrib(onu_pca, choice="var", axes=1)
+```
+Les variables contribuant le plus à F1 sont donc les variables TRAN, PROF, MENA et ENFA.
+
+```{r}
+#contribution of each variable to each axis 2
+fviz_contrib(onu_pca, choice="var", axes=2)
+```
+Les variables contribuant le plus à F2 sont donc :TOIL, COUR, REPA et SOMM.
+
+Les variables TELE et LOIS sont les 2 variables contribuant peu à chacun des deux axes (ce qui semble normal au vu de la taille de leur vecteur ascociés dans le cercle des corrélations).
+
+## 5.2 Contribution des individus
+On utilise les mêmes commandes que précédemment en choisissant cette fois ci les individus:
+```{r}
+#contribution of each individual to each axis 1
+fviz_contrib(onu_pca, choice="ind", axes=1)
+```
+
+Les individus FNW, FNU et FNE contribuent le plus à l'axe 1.
+
+```{r}
+#contribution of each individual to each axis 2
+fviz_contrib(onu_pca, choice="ind", axes=2)
+```
+Les individus FCU, HCW et HMW contribuent le plus à l'axe 2.
+
+# 6. Variables qualitatives
+
+```{r}
+#plot with quali var this time
+plot.PCA(onu_pca)
+```
+
+  La première chose que nous pouvons remarquer est que les coordonnées selon F1 des 4 modalités de la variable PAYS sont proche de 0  alors que les coordonnées de la première et deuxième modalité (en valeur absolue) selon F2 sont importantes.
+Cela signifie que les individus des pays représentés par les 2 premières modalités contribuent beaucoup plus à l'axe 2 que ceux des autres pays.
+Les personnes non-actives (ACT 2) semblent contribuer principalement au premier axe où beaucoup de femmes se trouve.
+On voit également que les 2 modalités de la variable SEX se trouve dans des zones oppposées. La modalité 1 (homme) se retrouve à gauche, là où se situent effectivement beaucoup d'individus de sexe masculin et la modalité 2 (femme) se retrouve elle à droite, là où se situe la majorité des femmes.
+
+```{r}
+#v test for categoriacal data for data set
+onu_pca$quali.sup$v.test
+```
+  Interprétation: 
+
+```{r}
+#plot ellipses in order to varify if the individuals do no create any significant groups 
+plotellipses(onu_pca, keepvar = 11:14, level=0.95)
+```
+  On remarque grâce aux ellipses de confiance une différence nette de comportement entre les individus des pays représentés par les modalités 1 et 2. En revanches les individus des pays représentés par les modalités 3 et 4 semblent très proche dans leur comportement. On remarque également une nette différence de comportement entre les 2 sexes.
+En ce qui concerne l'activité socio-professionnelle, les différences de comportement sont nettes. Les personnes actives (ACT_1) et les personnes n'ayant pas spécifié leur situations (ACT_9) sont assez proches. Il se pourrait donc qu'un nombre important de personnes n'ayant pas spécifiée leur situation soit des personnes actives.
+
+# 7. Interpretation générale des résultats de l'ACP
+
+  Pour rappel, les variables TRAN, PROF, ENFA et MENA contribuent le plus à l'axe 1. De plus leurs corrélations signifient que plus une personne passe de temps dans les transports et/ou au travail, moins elle passe de temps avec ses enfants et/ou elle passe de temps à faire du ménage. 
+Les variables TOIL, REPA et SOMM sont les variables contribuant le plus à l'axe 2. Leurs corrélations signifient que plus une personne passe de temps à faire sa toilette (aux toilettes ?) moins elle consacrera de temps à ses repas.
+
+D'un point de vu individus, l'axe 1 met en oppposition les femmes et les hommes alors que l'axe 2 semble mettre en opposition les personnes originaires des pays de l'Ouest (sauf USA) et celles originaires des autres pays mentionnés (l'opposition semble plus forte en les personnes des pays de l'Ouest et les USA).
+  
+  **__Pays de l'est et Yougoslavie :__**
+
+  A partir de cette analyse nous pouvons interpréter les comportements (en temps passé) de certaines catégories de personnes. 
+En effet, on retrouve deux categories principales de personnes de sexes differents dans des directions opposées, selon l'axe 1.
+Dans l'une de ces directions (représentée par les variables TRAN et PROF), se trouvent la categorie des hommes actifs et/ou mariés et dont l'activité et/ou situation maritale est non precisée, des pays de l'Est et  de la Yougoslavie. Les hommes de l'Est semblent donc passer la majorité de leur temps au travail et/ou dans les transports. (Ces individus sont bien représentés dans le plan, d'où cette conclusion)
+  
+  De plus, nous remarquons aussi que les femmes non-actives et/ou mariées des pays de l'Est passent la plupart de leur temps à s'occuper des enfants et du ménage.
+  
+  On en déduit ainsi, qu'à l'Est, les rôles sexués sont probablement encore bien encrés dans la culture (homme au travail et femme au foyer).
+  
+  **__Pays de l'ouest__**
+  
+  On retrouve les mêmes comportements que précedemment pour les hommes et les femmes respectivement.
+Cependant les hommes semblent passer légèrement moins de temps dans les transports et au travail , et plus de temps aux repas et à dormir.
+De même les femmes paraissent passer autant de temps (en moyenne) avec les enfants que les femmes de l'Est mais elles semlent passer moins de temps à dormir que les hommes de la même région géographique.
+  
+Les rôles sexués semblent là aussi encore d'actualité.
+  
+  **__Etats-unis__**
+  
+  Dans cette région, nous retrouvons les mêmes comportements féminins que précédemment. Les plus grandes différences étant le temps passé à faire sa toilette (aux toilettes?) et aux courses (qui est grandement plus élevé par rapport aux autres individus des autres régions), ainsi que le peu de temps passé à prendre ses repas et à dormir.
+  
+  **Remarque :**On note toutefois que si l'on garde les individus ayant un cos2 supérieur ou égal à 0.5 alors on voit apparaitre (graphique de la question 4.1) des femmes (principalement des USA) légèrement à gauche de l'origine de l'axe 1. Cela reflète peut être le fait que certaines femmes préfèrent maintenant privilégier leur carrière au détriment d'une vie de famille.
+Une étude plus approfondie serait nécessaire pour confirmer ou infirmer cette tendance (refaire un sondage sur plus d'individus par exemple).
+  
+  
