@@ -1,0 +1,169 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Exercice 1: exemple "enfants" 
+Quand on vous dit enfant, à quel adjectif pensez vous?
+
+On présente ci-dessous le résultat d'une enquête en fonction de la catégorie socio-professionnelle des personnes interrogées.
+
+```{r message=FALSE, warning=FALSE}
+library(gplots)
+library(FactoMineR)
+library(factoextra)
+library(corrplot)
+```
+
+
+```{r, eval = FALSE} 
+enfant=read.table('enfant.csv',sep=',',h=T,row.names=1)
+enfant
+```
+
+0.Réaliser une courte analyse descriptive élémentaire du tableau. Construire deux colonnes supplémentaires, SB somme des colonnes sans le bac et AB somme des colonnes avec le bac. On pourra utiliser la fonction apply.
+
+```{r}
+chisq.test(as.matrix(enfant))
+tableau=as.table(as.matrix(enfant))
+balloonplot(t(tableau),xlab = "", ylab = "",label=FALSE,show.margins=FALSE,main='Tableau de contingence')
+prop.table(as.matrix(enfant),1)
+prop.table(as.matrix(enfant),2)
+barplot(prop.table(as.matrix(enfant),1),beside=TRUE)
+barplot(t(prop.table(as.matrix(enfant),2)),beside=TRUE)
+```
+
+__Commentaire__ : Le test du khi-deux met en évidence une non-indépendance des données. Nos deux variables qualititatives sont donc liées par certaines modalités.
+
+Grâce aux différents graphiques et grâce aux profils lignes et colonnes, on remarque que les 3 mots les plus choisis par les personnes ne possédant pas de diplôme ou possédant un CAP sont dans l'ordre : Chômage, Avenir et Argent. On note que le mot Travail revient quasiment à la même fréquence que Argent pour les personnes détenant un CAP.
+Les 3 mots les plus choisis par les personnes possédant un BEPC ou un BAC sont dans l'ordre : Avenir, Chômage et Peur.
+Pour les personnes ayant un diplôme universitaire, les 3 mots les plus choisis sont dans l'ordre : Avenir, Argent et Peur.
+
+Nous remarquons donc que ce sont les 4 mots Chômage, Avenir, Argent et Peur qui reviennent le plus souvent. Les personnes ayant peu ou pas de diplômes semblent s'inquiéter des futures conditions de vie de leurs enfants (Chômage) alors que les personnes ayant plus de diplômes semblent percevoir les enfants de manière plus optimiste (Avenir). En revanche, là où le mot Peur revient souvent chez les personnes ayant un diplôme supérieur ou égal au BEPC, il est beaucoup plus rare chez les personnes ayant peu ou pas de diplôme. Cela peut peut-être vouloir dire que les personnes ayant peu ou pas de diplôme sont moins appeurées à l'idée d'avoir des enfants que les personnes ayant plus de diplômes.
+
+L'étude des profils lignes montre que parmis ceux ayant répondu Argent, 33% sont des personnes ayant un CAP et 26% sont des personnes n'ayant pas de diplôme, 16.5% sont des personnes possédant un BEPC, 15% des personnes possédant le BAC et 8.8% sont des personnes détenant un diplôme universitaire. On voit donc que les personnes ayant peu ou pas de diplôme s'inquiètent plus du côté financier d'avoir des enfants que ceux ayant plus de diplômes.
+Parmis ceux ayant répondu Avenir, 28% sont des personnes possédant un CAP, 24.5% sont des personnes ayant un BEPC, 23.5% sont des personnes ayant le BAC, 16.7% sont des personnes sans diplôme et presque 7% sont des personnes ayant un diplôme universitaire. On retrouve quasiment les mêmes pourcentages pour le mot Peur.
+Pour le mot Chômage, ceux ayant choisi le plus souvent ce mot sont des personnes ayant peu ou pas de diplômes.
+Les forts pourcentages de la modalité CAP laissent à penser que lors de cette enquête un grand nombre de personnes possédant un CAP a répondu, comparé aux autre types de diplômes. (On le vérifie facilement en regardant le tableau des effectifs). L'interprétation des profils lignes est donc certainement faussée.
+
+```{r}
+#Construction des colonnes supplémentaires
+enfant$SB=apply(enfant[,-4],1,sum)
+enfant$AB=apply(enfant,1,sum)
+```
+
+
+1. Réaliser l'AFC  de ce tableau, en utilisant les 2 colonnes en supplémentaire, notée enfant.ca.
+
+```{r}
+enfant.ca=CA(enfant, col.sup=6:7, graph=F)
+```
+
+
+2. Déterminer les axes retenus pour l'analyse en justifiant votre choix. Quelle est la qualité de l'AFC dans le plan F1-F2. Justifier l'intérêt et les objectifs d'une AFC en utilisant un test statistique lié à l'inertie du nuage.
+
+```{r}
+fviz_eig(enfant.ca,addlabels = TRUE)
+get_eigenvalue(enfant.ca)
+```
+
+Le scree plot montre que le premier axe explique 57% de l'inertie et le deuxième 21.1%. L'axe 3 et l'axe 4 expliquent quasiment le même pourcentage d'inertie, donc si l'on retient l'axe 3, il n'y a pas de raison de ne pas retenir l'axe 4 également.
+Je fais le choix ici de ne retenir que les 2 premiers axes car ceux-ci expliquent 78.1% de l'inertie, ce qui est une bonne qualité de représentation pour le plan F-F2.
+
+Le test statistique lié à l'inertie du nuage est le test du khi-deux effectué à la question 0. Nous avons déjà vu que celui-ci nous pousse à rejeter l'hypothèse d'indépendance des 2 variables qualitatives. Il y a donc des liens entre les modalités de ces deux variables, ce qui justifie l'intérêt d'une AFC ici. Elle va permettre de mettre en avant les modalités les plus associées et ainsi nous permettre de découvrir des tendances dans les réponses à ce questionnaire.
+
+
+3. Déterminer les modalités mal représentées dans le plan F1-F2. Représenter graphiquement les modalités bien représentées.
+
+```{r}
+fviz_ca_row(enfant.ca, col.row = "cos2",repel = TRUE)
+fviz_ca_col(enfant.ca, col.col = "cos2",repel = TRUE)
+plot.CA(enfant.ca,selectCol="cos2 0.75",selectRow="cos2 0.75", invisible = "col.sup")
+```
+
+Les modalités les moins bien représentées pour la première variable sont "Egoisme", "Logement", "Argent", "Emploi" et "Finance". La modalité la moins bien représentée pour la deuxième variable est "BEPC". Elles disparaissent donc lors de la projection des variables dans le plan F1-F2.
+
+
+4. Pour les axes F1 F2, déterminer les modalités ayant contribuées et donner une signification à ces axes. On pourra pour chaque axe faire l'énumérations des profils colonnes et ligne ayant contribuées positivement ou négatiement (position sur l'axe).
+
+```{r}
+fviz_contrib(enfant.ca, choice = "row", axes = 1)
+fviz_contrib(enfant.ca, choice = "col", axes = 1)
+fviz_contrib(enfant.ca, choice = "row", axes = 2)
+fviz_contrib(enfant.ca, choice = "col", axes = 2)
+```
+
+Nous voyons que les modalités de la première variable ayant le plus contribué à l'axe 1 sont "Chômage", "Avenir", "Travail", "Economique" et "Peur".
+Les modalités de la deuxième variable ayant le plus contribué à l'axe 1 sont "BAC" et "SANS".
+
+Les modalités Avenir, Peur, Economique et BAC ont des coordonnées positives sur l'axe 1 et les variables Travail, Chômage et SANS ont des coordonnées négatives sur l'axe 1.
+On voit donc que ce premier axe met en opposition les personnes n'ayant pas ou peu de diplômes à ceux ayant au moins le Baccalauréat. Il met aussi en opposition des modalités représentant le travail (de l'enfant ou du parent) à travers les modalités Travail et Chômage à des modalités plus axées sur l'avenir de l'enfant à travers les modalités Peur, Avenir, Economique.
+
+Les modalités de la première variables ayant le plus contribué à l'axe 2 sont "Economique", "Emploi", "Avenir", "Conjoncture" et "Travail".
+Les modalités de la deuxième variable ayant le plus contribué à l'axe 2 sont "UNIV" et "BAC".
+
+Les modalités Economique, Conjoncture, Travail et UNIV ont des coordonnées positives sur l'axe 2 alors que les modalités Emploi, Avenir et BAC ont des coordonnées négatives. 
+On voit donc que ce deuxième axe met en opposition les personnes ayant un diplôme universitaire à ceux n'ayant que le Baccalauréat. Il met également en opposition des personnes se souciant du côté économique que représente un enfant (il faut que les parents puissent assurer les dépenses liées à l'enfant, comme l'éducation par exemple) à ceux voyant un enfant comme le renouvellement de la population.
+
+
+5. Représenter les colonnes supplémentaires. Rappeler leur rôle.
+
+```{r}
+plot.CA(enfant.ca,selectCol="cos2 0.75",selectRow="cos2 0.75")
+```
+
+Les colonnes supplémentaires permettent une meilleure interprétation des résultats de l'AFC. Ici, elles correspondent à des individus moyens, SB représentant les personnes ayant soit moins que le BAc, soit plus que le BAC en terme de diplômes et AB représente l'ensemble des personnes ayant répondu.
+
+
+6. a. Que peut-on dire des profils Conjoncture et Economique, des profils Peur et Guerre. Vérifier le avec le calcul de leur profil.
+   b.Que peut-on dire des profil UNIV et Economique? Comment le vérifier?
+   c. Pourquoi peut-on représenter et interpréter dans un même espace les "distances"" entre profils ligne et colonne? 
+   d. Que peut on dire du profil Egoisme placé proche de l'origine. Vérifier le en calculant son profil et le profil marginal.
+   e. Proposer une interprétention des résultats.
+   
+a. Les profils Conjoncture et Economique sont très proches entre eux, ils sont donc fortement associés. Il en va de même pour les profils Peur et Guerre. Leurs profils ligne ont été calculés à la question 0. et on voit que les coefficients de Conjoncture et Economique sont très proches, ainsi que les coefficients de Peur et Guerre.
+
+b. Les profils UNIV et Economique sont assez associés. On voit dans les profils lignes de la question 0. que dans la colonne UNIV, ce sont Economique et Conjoncture qui ont les coefficients les plus élevés, d'où la forte asscociation.
+
+c. On peut représenter et interpréter dans un même espace les distances entre profils lignes et colonnes car ces profils jouent des rôles symétriques du fait des relations barycentriques qu'il existe pour trouver grâce aux profils lignes les profils colonnes et inversement.
+
+d. Le profil Egoisme étant proche de l'origine du repère, il est proche de l'hypothèse d'indépendance. C'est-à-dire que ce mot est choisi de façon uniforme, comme s'il n'y avait pas de lien entre les deux variables qualitatives.
+
+```{r}
+tab_freq=prop.table(enfant[,-c(6,7)])
+col_margin=apply(tab_freq,2,sum)
+col_margin
+```
+On voit donc en comparant le profil ligne moyen au profil Egoisme qu'ils sont très proches (mêmes coefficients), ce qui confirme ce qui a été dit précédemment.
+
+e. __Interprétation__ : 
+La représentation des différents profils lignes et colonnes dans le même plan permet de mettre en évidence plusieurs associations.
+
+Premièrement, il semblerait que les personnes ne détenant pas de diplôme ou detenant un CAP associent les enfants à une responsabilité demandant du travail, étant donc par conséquent difficile. En particulier, les personnes sans diplôme ont une très forte tendance à répondre Chômage lorsqu'on leur demande ce à quoi leur fait penser le mot enfant. Cela peut s'expliquer par le contexte économique et sociétal actuel où une personne sans aucun diplôme a très peu de chance de trouver un emploi stable. Le mot Chômage fait donc peut-être référence à la situation économique dans laquelle ils osnt ou la situation dans laquel ils ne veulent pas voir leurs enfants. Connaissant leur parcours et leurs difficultés à trouver du travail, c'est donc sûrement la première inquiétude qui leur vient à l'esprit quand on évoque le mot enfant.
+
+Deuxièmement, il semblerait que les personnes détenant uniquement un Baccalauréat se soucis du futur des enfants lorsqu'on leur pose la question mentionnée précédemment. Le mot enfant leur fait en priorité penser à tout se qui pourrait leur arriver de mauvais (Guerre et dans une moindre mesure Santé), ou à leur avenir (qu'il soit bon ou mauvais). Cette catégorie de personne semble donc se préoccuper de problème "extérieur", dans le sens où ce ne sont pas forcément des choses qu'ils peuvent contrôler en tant que parents, contrairement aux problèmes financiers par exemple.
+
+Troisièmement, on remarque que le mot enfant évoque chez les personnes détennant un diplôme universitaire une notion de plannification. Les mots Economique et Conjucture laissent penser que ce type de personnes voit les enfants non pas comme un fardeau financier mais comme une situation qu'il faut pouvoir contrôler (économiquement parlant). Ce type de personnes semble aussi plus confiant en terme d'avenir des enfants car ils choisissent très peu les mots comme Peur ou Chômage par exemple, ce qui peut sans doute être lié à leur propre situation personnelle. Il est bien connu qu'une personne ayant un diplôme universitaire est plus enclin à trouver un emploi stable, donc elles n'ont pas forcément connu des périodes de chômage et donc n'imagine pas forcément leurs propres enfants souffrir de cela.
+
+Pour finir, les colonnes supplémentaires nous permettent de montrer l'apport de la modalité BAC dans les réponses données à ce questionnaire. En effet, la colonne AB (avec BAC) représente les réponses des personnes intérrogées sans prendre en compte leur niveau d'étude. Tout se passe comme si on avait une seule modalité pour la variable niveau d'étude, qui serait "tous_niveaux_confondus". Celle ci est proche du centre du repère donc cela indique qu'elle est proche du profil moyen et donc que les réponses sont réparties de manière quasi-uniforme.
+En revanche, la variable SB (sans BAC) qui comptabilise les réponses des personnes de tout niveau sauf le baccalauréat est un peu plus éloignée du centre et se décale vers le hautet vers la gauche. Cela veut dire que les différents niveaux d'étude ont une influence dans les réponses données. On aurait pu enlever UNIV et comparer la nouvelle colonne supplémetaire obtenue et on aurait pû voir également que le niveau d'étude influence grandement les types de réponse.
+
+
+7. Réaliser une classification ascendante hièrarchique des profils lignes.
+
+A chaque étape, l'algorithme regroupe les profils les plus proches. Plus le noeud regroupant deux profils est bas, plus les profils sont proches. Il suffit de couper l'arbre pour obtenir une partition.
+Combien de groupes suggèrent le résultat et propose le logiciel? Justifier ce choix et réaliser le en cliquant.
+
+On voit donc grâce au graphe que 5 groupes ont été constitués. Cela semble assez normal si on prend en compte toutes les modalités des deux variables. Quand on projette ces profils dans le même plan, on voit assez distinctement 5 groupes se créer. Cela correspond également au nombre de modalités de la deuxième variable. Nous allons maintenant voir qu'elles sont justement les profils colonne différenciant le plus chaque groupe, ainsi que les profils lignes les plus proches du centre du cluster (paragone). Enfin nous verrons quels groupes sont reliés à quelle dimension.
+
+```{r, eval = FALSE} 
+enfant.hcpc = HCPC(enfant.ca, nb.clust = -1, method = "ward")
+enfant.hcpc$desc.var
+enfant.hcpc$desc.ind$para
+enfant.hcpc$desc.axes
+```
+
+On voit donc grâce aux graphes que 5 groupes ont été constitués. Cela semble assez normal si on prend en compte toutes les modalités des deux variables. Quand on projette ces profils dans le même plan, on voit assez distinctement 5 groupes se créer. Cela correspond également au nombre de modalités de la deuxième variable.
+
+Les clusters 2, 3 et 5 sont différenciés par une seule modalité qui est respectivement BAC, BEPC et UNIV. Cela veut dire que l'on retrouve des comportements similaires des les réponses des personnes ayant le BAC. Il en va de même pour ceux ayant un BEPC ou un diplôme universitaire.
+Les deux autres clusters sont quand à eux différenciés par 4 modalités. Cela veut dire que des personnes n'ayant pas le même niveau d'étude répondent aussi assez les mêmes mots à la question posée.
