@@ -20,7 +20,7 @@ library(ade4)
 library(ggplot2)
 library(corrplot)
 
-onu <- read.csv("C:/Users/Philippine/Documents/Cours/Maths/M1/S2/Data_Mining/ONU.csv",header=TRUE, sep=",", row.names=1)
+onu <- read.csv("C:/Users/Philippine/Documents/Cours/Maths/M1/S2/Data_Mining/RD2_ACP/ONU.csv",header=TRUE, sep=",", row.names=1)
 
 str(onu)
 ```
